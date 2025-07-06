@@ -17,6 +17,7 @@ const allowedOrigins = [
   'https://week-5-web-sockets-assignment-khuts.vercel.app' // ✅ NO trailing slash
 ];
 
+
 app.use(cors({
   origin: allowedOrigins,
   credentials: true,
