@@ -7,7 +7,6 @@ import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import { RiEmojiStickerFill } from "react-icons/ri";
 
-
 export default function Dashboard() {
   const user = JSON.parse(localStorage.getItem('user'));
   const [message, setMessage] = useState('');
@@ -20,57 +19,61 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-
   // Fetch persisted messages once on mount
   useEffect(() => {
-  fetch(`${import.meta.env.VITE_SOCKET_URL}/api/messages`)
-    .then(res => res.json())
-    .then(data => {
-      setMessages(data.map(msg => ({
-        user: msg.user,
-        message: msg.message,
-        timestamp: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      })));
-    })
-    .catch(err => console.error('❌ Failed to fetch messages:', err));
-}, []);
-
+    fetch(`${import.meta.env.VITE_SOCKET_URL}/api/messages`)
+      .then(res => res.json())
+      .then(data => {
+        setMessages(data.map(msg => ({
+          user: msg.user,
+          message: msg.message,
+          timestamp: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        })));
+      })
+      .catch(err => console.error('❌ Failed to fetch messages:', err));
+  }, []);
 
   useEffect(() => {
-    socket.on('connect', () => {
+    const onConnect = () => {
       console.log('🟢 Connected to socket:', socket.id);
-    });
+      socket.emit('userConnected', {
+        name: user.name,
+        id: user.id,
+      });
+    };
 
-    socket.emit('userConnected', {
-      name: user.name,
-      id: user.id,
-    });
-
-    socket.on('onlineUsers', (users) => {
+    const onOnlineUsers = (users) => {
       setOnlineUsers(users);
-    });
+    };
 
-    // Append incoming messages from server
-    socket.on('chatMessage', (data) => {
+    const onChatMessage = (data) => {
       setMessages((prev) => [...prev, data]);
-    });
+    };
 
-    socket.on('typing', (typingUser) => {
+    const onTyping = (typingUser) => {
       setTypingUser(typingUser);
       setIsTyping(true);
-    });
+    };
 
-    socket.on('stopTyping', () => {
+    const onStopTyping = () => {
       setIsTyping(false);
       setTypingUser('');
-    });
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('onlineUsers', onOnlineUsers);
+    socket.on('chatMessage', onChatMessage);
+    socket.on('typing', onTyping);
+    socket.on('stopTyping', onStopTyping);
 
     return () => {
-      socket.off('chatMessage');
-      socket.off('typing');
-      socket.off('stopTyping');
+      socket.off('connect', onConnect);
+      socket.off('onlineUsers', onOnlineUsers);
+      socket.off('chatMessage', onChatMessage);
+      socket.off('typing', onTyping);
+      socket.off('stopTyping', onStopTyping);
     };
-  }, []);
+  }, [user.name, user.id]);
 
   // Scroll to bottom on new message
   useEffect(() => {
@@ -100,7 +103,7 @@ export default function Dashboard() {
 
     setMessage('');
     socket.emit('stopTyping');
-    // Don't add message locally here — will arrive via socket event
+    setShowEmojiPicker(false); // close emoji picker on send
   };
 
   const handleLogout = () => {
@@ -109,12 +112,10 @@ export default function Dashboard() {
     navigate('/login');
   };
 
-    const addEmoji = (emoji) => {
-      setMessage(prev => prev + emoji.native);
-      setShowEmojiPicker(false); // optional auto-close
+  const addEmoji = (emoji) => {
+    setMessage(prev => prev + emoji.native);
+    setShowEmojiPicker(false); // auto-close emoji picker after selection
   };
-
-
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gradient-to-r from-purple-100 via-blue-50 to-white">
@@ -200,9 +201,8 @@ export default function Dashboard() {
 
         {/* Typing indicator */}
         {isTyping && typingUser !== user.name && (
-          <div className="mb-2 text-sm italic text-gray-500 select-none">{typingUser} is typing...</div>
+          <div className="mb-2 text-sm italic text-gray-500 select-none" aria-live="polite">{typingUser} is typing...</div>
         )}
-
 
         {/* Message input form with emoji picker */}
         <form onSubmit={sendMessage} className="relative mt-2">
@@ -213,14 +213,15 @@ export default function Dashboard() {
             </div>
           )}
 
-
           <div className="flex gap-2 items-center">
             {/* Emoji toggle button */}
             <button
               type="button"
               onClick={() => setShowEmojiPicker(prev => !prev)}
-              className="text-2xl p-2 rounded-[100%] cursor-pointer bg-gray-300"
+              className="text-2xl p-2 rounded-full cursor-pointer bg-gray-300"
               title="Add emoji"
+              aria-label="Toggle emoji picker"
+              aria-expanded={showEmojiPicker}
             >
               <RiEmojiStickerFill color='#111111' />
             </button>
@@ -231,12 +232,14 @@ export default function Dashboard() {
               placeholder="Type a message..."
               className="flex-1 border border-gray-300 rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition shadow-sm"
               autoComplete="off"
+              aria-label="Message input"
             />
 
             <button
               type="submit"
               className="bg-indigo-600 hover:bg-indigo-700 rounded-full p-3 flex items-center justify-center text-white shadow-md transition"
               aria-label="Send message"
+              disabled={!message.trim()}
             >
               <BiSend size={20} />
             </button>
