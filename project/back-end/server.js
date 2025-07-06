@@ -110,11 +110,17 @@ io.on('connection', async (socket) => {
 
 app.set('io', io);
 
-
-// ✅ Start server
+// ✅ Connect to DB and then start server
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => {
-  console.log(`✅ Server is running on port ${PORT}`);
-});
 
-
+(async () => {
+  try {
+    await connectDB(); // Await MongoDB connection before starting
+    server.listen(PORT, () => {
+      console.log(`✅ Server is running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  }
+})();
