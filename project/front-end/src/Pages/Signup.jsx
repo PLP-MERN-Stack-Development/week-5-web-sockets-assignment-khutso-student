@@ -8,6 +8,8 @@ export default function Signup() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const API_BASE_URL = 'https://week-5-web-sockets-assignment-khutso.onrender.com';
+
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -28,7 +30,7 @@ export default function Signup() {
       };
 
 
-      const res = await fetch(`${import.meta.env.VITE_SOCKET_URL}/api/auth/signup`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(trimmedForm),

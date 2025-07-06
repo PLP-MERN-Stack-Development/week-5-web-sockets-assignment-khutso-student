@@ -7,6 +7,9 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
 
+  const API_BASE_URL = 'https://week-5-web-sockets-assignment-khutso.onrender.com';
+
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -21,7 +24,7 @@ export default function Login() {
     };
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_SOCKET_URL}/api/auth/login`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(trimmedForm),
