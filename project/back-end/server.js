@@ -14,7 +14,7 @@ const server = http.createServer(app);
 // ✅ CORS Setup for Vercel and Localhost
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://your-frontend.vercel.app' // ✅ replace with your actual Vercel frontend URL
+  'https://week-5-web-sockets-assignment-khuts.vercel.app' // ✅ NO trailing slash
 ];
 
 app.use(cors({
@@ -42,6 +42,7 @@ const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 });
 
@@ -105,6 +106,6 @@ const PORT = process.env.PORT || 5000;
 
 connectDB().then(() => {
   server.listen(PORT, () => {
-    console.log(`✅ Server is running on http://localhost:${PORT}`);
+    console.log(`✅ Server is running on port ${PORT}`);
   });
 });

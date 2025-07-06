@@ -23,17 +23,18 @@ export default function Dashboard() {
 
   // Fetch persisted messages once on mount
   useEffect(() => {
-    fetch('http://localhost:5000/api/messages')
-      .then(res => res.json())
-      .then(data => {
-        setMessages(data.map(msg => ({
-          user: msg.user,
-          message: msg.message,
-          timestamp: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        })));
-      })
-      .catch(err => console.error('Failed to fetch messages:', err));
-  }, []);
+  fetch(`${import.meta.env.VITE_SOCKET_URL}/api/messages`)
+    .then(res => res.json())
+    .then(data => {
+      setMessages(data.map(msg => ({
+        user: msg.user,
+        message: msg.message,
+        timestamp: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      })));
+    })
+    .catch(err => console.error('❌ Failed to fetch messages:', err));
+}, []);
+
 
   useEffect(() => {
     socket.on('connect', () => {
