@@ -1,0 +1,103 @@
+require('dotenv').config(); 
+
+const express = require('express');
+const cors = require('cors');
+const http = require('http');
+const connectDB = require('./config/db');
+const authRoutes = require('./routes/AuthRoutes'); 
+const { Server } = require('socket.io');
+const Message = require('./models/Message');
+
+
+
+const app = express();
+const server = http.createServer(app); 
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Routes
+app.use('/api/auth', authRoutes);
+
+app.get('/api/messages', async (req, res) => {
+  try {
+    const messages = await Message.find().sort({ createdAt: 1 });
+    res.json(messages);
+  } catch (error) {
+    console.error('Error fetching messages:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Socket.IO setup
+const io = new Server(server, {
+  cors: {
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+  },
+});
+
+const onlineUsers = new Map();
+
+io.on('connection', async (socket) => {
+  console.log('🟢 New client connected:', socket.id);
+
+  // Send chat history
+  try {
+    const messages = await Message.find().sort({ timestamp: 1 }).limit(50);
+    socket.emit('chatHistory', messages.map(msg => ({
+      user: msg.user,
+      message: msg.message,
+      timestamp: msg.timestamp.toLocaleTimeString(),
+    })));
+  } catch (err) {
+    console.error('Error loading messages:', err);
+  }
+
+  socket.on('userConnected', (user) => {
+    onlineUsers.set(socket.id, user);
+    io.emit('onlineUsers', Array.from(onlineUsers.values()));
+  });
+
+  socket.on('chatMessage', async ({ user, message }) => {
+    const timestamp = new Date();
+    try {
+      const newMessage = new Message({ user, message, timestamp });
+      await newMessage.save();
+
+      io.emit('chatMessage', {
+        user,
+        message,
+        timestamp: timestamp.toLocaleTimeString(),
+      });
+    } catch (err) {
+      console.error('Error saving message:', err);
+    }
+  });
+
+  socket.on('typing', (user) => {
+    socket.broadcast.emit('typing', user);
+  });
+
+  socket.on('stopTyping', () => {
+    socket.broadcast.emit('stopTyping');
+  });
+
+  socket.on('disconnect', () => {
+    console.log('🔴 Client disconnected:', socket.id);
+    onlineUsers.delete(socket.id);
+    io.emit('onlineUsers', Array.from(onlineUsers.values()));
+  });
+});
+
+app.set('io', io);
+
+// Start server
+const PORT = process.env.PORT || 5000;
+
+connectDB().then(() => {
+  server.listen(PORT, () => {
+    console.log(`✅ Server is running on http://localhost:${PORT}`);
+  });
+});
